@@ -15,7 +15,7 @@ correct_fstab() {
   # starting with v5.10.y, fstab requires a padded zero in the path to /boot
   if [[ -f /etc/fstab ]]; then
     if grep -q mmcblk1p1 /etc/fstab; then
-      sed -i 's/mmcblk1p1/mmcblk0p1/' /etc/fstab
+      sed -i 's/mmcblk1p1/sda2/' /etc/fstab
     fi
   fi
 }
@@ -25,9 +25,9 @@ check_not_rpi5() {
     if ! grep -a -q 5 /sys/firmware/devicetree/base/model; then
       cat <<END
 
->>> WARNING: You appear to have installed linux-rpi-16k on incompatible hardware!
+>>> WARNING: You appear to have installed this shit on incompatible hardware!
              Rebooting will likely render this system unbootable!
-             Highly recommend installing linux-rpi before you reboot!
+             Highly recommend installing better shit before you reboot!
 
 END
     fi

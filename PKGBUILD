@@ -2,20 +2,21 @@
 # Maintainer: Kevin Mihelich <kevin@archlinuxarm.org>
 # Maintainer: Oleg Rakhmanov <oleg@archlinuxarm.org>
 # Maintainer: Dave Higham <pepedog@archlinuxarm.org>
+# Maintainer: inferno0230 <mail@inferno0230.in>
 # Contributer: Jan Alexander Steffens (heftig) <heftig@archlinux.org>
 
 buildarch=8
 
-pkgbase=linux-rpi-16k
-_commit=aa41065014c753edd2038294adb957f117315c77
-_srcname=linux-${_commit}
+pkgbase=linux-rpi5-inferno0230
+_commit=a466289f0c771971717e1eb5dbb5451773b172d3
+_srcname=linux-rpi-${_commit}
 _kernelname=${pkgbase#linux}
 _regen=
-pkgver=6.6.18
+pkgver=6.7.6
 pkgrel=1
 pkgdesc='Linux'
-url="https://github.com/raspberrypi/linux"
-arch=(aarch64)
+url="https://github.com/inferno0230/linux-rpi"
+arch=(x86_64 aarch64)
 license=(GPL2)
 makedepends=(
   bc
@@ -23,7 +24,7 @@ makedepends=(
   inetutils
 )
 options=('!strip')
-source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
+source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/inferno0230/linux-rpi/archive/${_commit}.tar.gz"
         cmdline.txt
         config.txt
         config8
@@ -31,55 +32,39 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         linux.preset
         archarm.diffconfig
 )
-md5sums=('73b1701d7f2a47028ff01543995e8dea'
-         '3bab7426d8c8818dda8353da3892a41f'
-         '16c484af9f72b9275afcf83a6b8eab36'
+md5sums=('e3edbc97d6a47f27792b5d534f201758'
+         '1503ec940f4d49cf2130f747135d07aa'
+         'eec3c524888908ea633ca49a002f78ad'
          '88f7e25c6072b0b8b1ef421ae05ffe31'
          'a157c5bfc0f03d0728c92bd953b06265'
          '86d4a35722b5410e3b29fc92dae15d4b'
          'c8f84694321e249492c80149833671d7')
 
 # setup vars
-_kernel=kernel8.img KARCH=arm64 _image=Image _config=config8
+_kernel=kernel8.img KARCH=arm64 _image=Image _config=config8 _clang_path=/home/inferno0230/llvm _build_cc="LLVM=1 LLVM_IAS=1 LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf STRIP=llvm-strip"
+export PATH=$_clang_path/bin:$PATH
+custom_flags="ARCH=arm64 CC=clang CXX=clang++ $_build_cc"
 
 prepare() {
   cd "${srcdir}/${_srcname}"
-
   # consistent behavior of lscpu on arm/arm64
   patch -p1 -i ../0001-Make-proc-cpuinfo-consistent-on-arm64-and-arm.patch
 
   echo "Setting version..."
   echo "-$pkgrel" > localversion.10-pkgrel
   echo "${pkgbase#linux}" > localversion.20-pkgname
-
-  if [[ $_regen -eq 1 ]]; then
-    # useful on two point releases to keep shit straight
-    echo "Applying custom shit to bcm2712_defconfig"
-    make bcm2712_defconfig
-    cat ../archarm.diffconfig >> .config
-    make oldconfig
-    # bcm2712_defconfig inserts a value for CONFIG_LOCALVERSION= so set this to null
-    sed '/^CONFIG_LOCALVERSION=/s,.*$,CONFIG_LOCALVERSION="",' .config >$startdir/newconfig.$_config
-    echo "verify that newconfig.$_config is fit for purpose then redefine $_config"
-    exit
-  else
-    echo "Setting config..."
-    cp ../"$_config" .config
-    make olddefconfig
-    diff -u ../"$_config" .config || :
-
-    make -s kernelrelease > version
-    echo "Prepared $pkgbase version $(<version)"
-  fi
+  echo "Setting config..."
+  make $custom_flags olddefconfig
+  make $custom_flags -s kernelrelease > version
+  echo "Prepared $pkgbase version $(<version)"
 }
 
 build() {
   cd "${srcdir}/${_srcname}"
-
-  export KCFLAGS=' -mcpu=cortex-a76'
-  export KCPPFLAGS=' -mcpu=cortex-a76'
-
-  make "$_image" modules dtbs
+  clang --version
+  whereis clang
+  echo make $custom_flags Image modules dtbs -j16
+  make $custom_flags Image modules dtbs -j16
 }
 
 _package() {
@@ -101,7 +86,7 @@ _package() {
   conflicts=(
     linux
     linux-rpi
-    uboot-raspberrypi
+    linux-rpi-16k
   )
   install=${pkgname}.install
   backup=(
@@ -116,7 +101,7 @@ _package() {
   echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
 
   echo "Installing modules..."
-  make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+  make $custom_flags INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
     DEPMOD=/doesnt/exist modules_install  # Suppress depmod
 
   # remove build link
@@ -124,7 +109,7 @@ _package() {
 
   echo "Installing Arch ARM specific stuff..."
   mkdir -p "${pkgdir}"/boot
-  make INSTALL_DTBS_PATH="${pkgdir}/boot" dtbs_install
+  make $custom_flags INSTALL_DTBS_PATH="${pkgdir}/boot" dtbs_install
 
   if [[ $CARCH == "aarch64" ]]; then
     # drop hard-coded devicetree=foo.dtb in /boot/config.txt for
@@ -135,7 +120,7 @@ _package() {
 
   # remove unneeded dtb files since this package is only for RPi5
   for i in bcm2837 bcm2711 bcm2710; do
-    rm "${pkgdir}/boot/$i"*.dtb
+    rm -f "${pkgdir}/boot/$i"*.dtb
   done
 
   cp arch/$KARCH/boot/$_image "${pkgdir}/boot/$_kernel"
