@@ -7,12 +7,12 @@
 
 buildarch=8
 
-pkgbase=linux-rpi5-inferno0230
-_commit=a466289f0c771971717e1eb5dbb5451773b172d3
+pkgbase=linux-rpi5
+_commit=d4e7243321137d9bdf711a39af3626dc00378ecc
 _srcname=linux-rpi-${_commit}
 _kernelname=${pkgbase#linux}
 _regen=
-pkgver=6.7.6
+pkgver=6.8.1
 pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/inferno0230/linux-rpi"
@@ -32,10 +32,10 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/inferno0230/li
         linux.preset
         archarm.diffconfig
 )
-md5sums=('e3edbc97d6a47f27792b5d534f201758'
+md5sums=('481181c8f3a270cc561013270c4a75dd'
          '1503ec940f4d49cf2130f747135d07aa'
          'eec3c524888908ea633ca49a002f78ad'
-         '88f7e25c6072b0b8b1ef421ae05ffe31'
+         '74aaeb1f6b80c58dc049f291bc9feb74'
          'a157c5bfc0f03d0728c92bd953b06265'
          '86d4a35722b5410e3b29fc92dae15d4b'
          'c8f84694321e249492c80149833671d7')
@@ -75,9 +75,6 @@ _package() {
     kmod
     linux-firmware
     'mkinitcpio>=0.7'
-  )
-  optdepends=(
-    'wireless-regdb: to set the correct wireless channels of your country'
   )
   provides=(
     linux="${pkgver}"
